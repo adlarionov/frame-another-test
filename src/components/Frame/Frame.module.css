@@ -1,0 +1,43 @@
+.frame {
+  --border-style: 5px solid red;
+  --border-space: 0px;
+
+  .frame__top_left {
+    position: absolute;
+    width: 20%;
+    height: 20%;
+    border-left: var(--border-style);
+    border-top: var(--border-style);
+    top: var(--border-space);
+    left: var(--border-space);
+  }
+
+  .frame__top_right {
+    position: absolute;
+    width: 20%;
+    height: 20%;
+    border-right: var(--border-style);
+    border-top: var(--border-style);
+    top: var(--border-space);
+    right: var(--border-space);
+  }
+
+  .frame__bottom_left {
+    position: absolute;
+    width: 20%;
+    height: 20%;
+    border-left: var(--border-style);
+    border-bottom: var(--border-style);
+    bottom: var(--border-space);
+  }
+
+  .frame__bottom_right {
+    position: absolute;
+    width: 20%;
+    height: 20%;
+    border-right: var(--border-style);
+    border-bottom: var(--border-style);
+    bottom: var(--border-space);
+    right: var(--border-space);
+  }
+}

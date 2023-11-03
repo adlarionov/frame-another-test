@@ -1,10 +1,10 @@
 import "./App.css";
-import Frame from "./components/Frame";
+import Camera from "./components/Camera/Camera";
 
 function App() {
   return (
     <>
-      <Frame />
+      <Camera />
     </>
   );
 }
