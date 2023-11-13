@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Touch, useEffect, useRef, useState } from "react";
 
 import styles from "./Frame.module.css";
 
-function Frame() {
+function Frame({ video }: { video: HTMLVideoElement }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -12,24 +13,23 @@ function Frame() {
     x: 0,
     y: 0,
   });
-  const [pinchTouches, setPinchTouches] = useState<{
-    touch1: {
-      touchStartX: number;
-      touchStartY: number;
-    };
-    touch2: {
-      touchStartX: number;
-      touchStartY: number;
-    };
+  const [startPinchTouches, setStartPinchTouches] = useState<{
+    startX: number;
+    startY: number;
+    distance: number;
   }>({
-    touch1: {
-      touchStartX: 0,
-      touchStartY: 0,
-    },
-    touch2: {
-      touchStartX: 0,
-      touchStartY: 0,
-    },
+    startX: 0,
+    startY: 0,
+    distance: 0,
+  });
+  const [pinchTransform, setPinchTransform] = useState<{
+    scale: number;
+    transform: string;
+    zIndex: number;
+  }>({
+    scale: 1,
+    transform: "",
+    zIndex: 1,
   });
   const [size, setSize] = useState<{ width: number; height: number }>({
     width: 120,
@@ -45,6 +45,56 @@ function Frame() {
     }
   }, []);
 
+  const calculateDistance = (touch1: Touch, touch2: Touch): number => {
+    return Math.hypot(
+      touch1.clientX - touch2.clientX,
+      touch1.clientY - touch2.clientY
+    );
+  };
+
+  const getImageFromCanvas = (canvasProps: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => {
+    if (canvasRef.current && video) {
+      canvasRef.current.width = size.width;
+      canvasRef.current.height = size.height;
+      const canvasContext = canvasRef.current.getContext("2d");
+
+      const xMultipler = canvasProps.x / (video?.clientWidth || 0);
+      const yMultipler = canvasProps.y / (video?.clientHeight || 0);
+
+      const sourceX = xMultipler * video.videoWidth;
+      const sourceY = yMultipler * video.videoHeight;
+
+      const widthMultipler =
+        (video as HTMLVideoElement).videoWidth / (video?.clientWidth || 0);
+      const heightMultipler =
+        (video as HTMLVideoElement).videoHeight / (video?.clientHeight || 0);
+
+      const sourceWidth = widthMultipler * canvasProps.width;
+      const sourceHeight = heightMultipler * canvasProps.height;
+
+      canvasContext?.drawImage(
+        video as HTMLVideoElement,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      const image = canvasRef.current.toDataURL("image/jpeg");
+
+      console.log(image);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -54,8 +104,8 @@ function Frame() {
         zIndex: 1,
         top: 0,
         left: 0,
-        width: "99vw",
-        height: 400,
+        width: video.clientWidth,
+        height: video.clientHeight,
       }}
       onTouchStart={(event) => {
         console.log(event);
@@ -63,17 +113,10 @@ function Frame() {
           event.preventDefault();
           const touch1 = event.targetTouches[0];
           const touch2 = event.targetTouches[1];
-          setPinchTouches(() => {
-            return {
-              touch1: {
-                touchStartX: touch1.clientX,
-                touchStartY: touch1.clientY,
-              },
-              touch2: {
-                touchStartX: touch2.clientX,
-                touchStartY: touch2.clientY,
-              },
-            };
+          setStartPinchTouches({
+            startX: (touch1.clientX + touch2.clientX) / 2,
+            startY: (touch1.clientY + touch2.clientY) / 2,
+            distance: calculateDistance(touch1, touch2),
           });
         } else {
           setTouchPosition({
@@ -83,42 +126,34 @@ function Frame() {
         }
       }}
       onTouchMove={(event) => {
-        if (event.targetTouches.length === 2) {
+        if (event.touches.length === 2) {
           event.preventDefault();
-          const touchMove1 = event.targetTouches[0];
-          const touchMove2 = event.targetTouches[1];
-          const offsetTouch1 = Math.hypot(
-            pinchTouches.touch1.touchStartX - touchMove1.clientX,
-            pinchTouches.touch1.touchStartY - touchMove1.clientY
+          const touchMove1 = event.touches[0];
+          const touchMove2 = event.touches[1];
+
+          const deltaDistance = calculateDistance(touchMove1, touchMove2);
+
+          const scale = Math.min(
+            Math.max(0.85, deltaDistance / startPinchTouches.distance),
+            1.25
           );
-          const offsetTouch2 = Math.hypot(
-            pinchTouches.touch2.touchStartX - touchMove2.clientX,
-            pinchTouches.touch2.touchStartY - touchMove2.clientY
-          );
-          if (
-            pinchTouches.touch1.touchStartX - touchMove1.clientX > 0 ||
-            pinchTouches.touch2.touchStartX - touchMove2.clientX < 0
-          ) {
-            if (size.height >= 150 || size.width >= 150) {
-              return;
-            }
-            setSize((prevSize) => {
-              return {
-                width: prevSize.width + (offsetTouch1 + offsetTouch2) / 10,
-                height: prevSize.height + (offsetTouch1 + offsetTouch2) / 10,
-              };
-            });
-          } else {
-            if (size.height <= 90 || size.width <= 90) {
-              return;
-            }
-            setSize((prevSize) => {
-              return {
-                width: prevSize.width - (offsetTouch1 + offsetTouch2) / 10,
-                height: prevSize.height - (offsetTouch1 + offsetTouch2) / 10,
-              };
-            });
+          if (scale > 1.25 || scale < 0.85) {
+            return;
           }
+          // const deltaX =
+          //   ((touchMove1.clientX + touchMove2.clientX) / 2 -
+          //     startPinchTouches.startX) *
+          //   2;
+          // const deltaY =
+          //   ((touchMove1.clientY + touchMove2.clientY) / 2 -
+          //     startPinchTouches.startY) *
+          //   2;
+
+          setPinchTransform({
+            scale: scale,
+            transform: `scale(${scale})`,
+            zIndex: 9999,
+          });
         } else {
           let offsetX = touchPosition.x - event.targetTouches[0].clientX;
           let offsetY = touchPosition.y - event.targetTouches[0].clientY;
@@ -150,9 +185,22 @@ function Frame() {
       }}
       onTouchEnd={(event) => {
         event.preventDefault();
-        setPosition({
+        setSize({
+          height: 120 * pinchTransform.scale,
+          width: 120 * pinchTransform.scale,
+        });
+        setPinchTransform((prevTransform) => {
+          return {
+            scale: prevTransform.scale,
+            transform: "",
+            zIndex: 1,
+          };
+        });
+        getImageFromCanvas({
           x: position.x,
           y: position.y,
+          width: size.width,
+          height: size.height,
         });
       }}
     >
@@ -164,20 +212,32 @@ function Frame() {
           left: position.x,
           width: size.width,
           height: size.height,
+          scale: pinchTransform.scale,
+          transform: pinchTransform.transform,
+          zIndex: pinchTransform.zIndex,
         }}
       >
         <div className={styles.frame__top_left} />
         <div className={styles.frame__top_right} />
         <div className={styles.frame__bottom_left} />
         <div className={styles.frame__bottom_right} />
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: size.width,
+            height: size.height,
+            touchAction: "none",
+          }}
+        />
       </div>
-      {/* <p>
-        {position.x}, {position.y}
-        <br />
-        {pinchTouches.touch1.touchStartX}, {pinchTouches.touch1.touchStartY}
-        <br />
-        {pinchTouches.touch2.touchStartX}, {pinchTouches.touch2.touchStartY}
-      </p> */}
+      <div style={{ position: "absolute", top: 550, left: "40%" }}>
+        <p>
+          {size.height}
+          <br />
+          {position.x} {position.y}
+          <br />
+        </p>
+      </div>
     </div>
   );
 }

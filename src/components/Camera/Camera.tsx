@@ -9,22 +9,15 @@ export default function Camera() {
 
   useEffect(() => {
     const getVideoMedia = async () => {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: "environment" } },
-      });
-      if (videoRef.current) {
+      const mediaStream = await navigator.mediaDevices
+        .getUserMedia({
+          video: { facingMode: { exact: "environment" } },
+        })
+        .catch((error) => console.error(error));
+      if (videoRef.current && mediaStream) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play();
       }
-      // .then((stream) => {
-      //   if (videoRef.current) {
-      //     videoRef.current.srcObject = stream;
-      //     videoRef.current.play();
-      //   }
-      // })
-      // .catch((error) => {
-      //   alert(error);
-      // });
     };
     getVideoMedia();
   }, []);
@@ -37,9 +30,9 @@ export default function Camera() {
         playsInline
         ref={videoRef}
         width="99%"
-        height="100%"
+        height="auto"
       />
-      {videoRef.current?.playsInline && <Frame />}
+      {videoRef.current?.playsInline && <Frame video={videoRef.current} />}
       <button
         onClick={() =>
           setFacingMode(facingMode === "user" ? "environment" : "user")
