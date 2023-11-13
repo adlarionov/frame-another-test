@@ -5,6 +5,7 @@ import styles from "./Frame.module.css";
 function Frame({ video }: { video: HTMLVideoElement }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isMouseDragging, setIsMouseDragging] = useState<boolean>(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -117,6 +118,53 @@ function Frame({ video }: { video: HTMLVideoElement }) {
         width: video.clientWidth,
         height: video.clientHeight,
       }}
+      onMouseDown={(event) => {
+        setIsMouseDragging(true);
+        setTouchPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        console.log("here");
+      }}
+      onMouseMove={(event) => {
+        if (isMouseDragging) {
+          let offsetX = touchPosition.x - event.clientX;
+          let offsetY = touchPosition.y - event.clientY;
+          if (
+            position.x - offsetX <= 0 ||
+            position.x - offsetX >=
+              containerRef.current!.offsetWidth - size.width
+          ) {
+            offsetX = 0;
+          }
+          if (
+            position.y - offsetY <= 0 ||
+            position.y - offsetY >=
+              containerRef.current!.offsetHeight - size.height
+          ) {
+            offsetY = 0;
+          }
+          setPosition((prevPosition) => {
+            return {
+              x: prevPosition.x - offsetX,
+              y: prevPosition.y - offsetY,
+            };
+          });
+          setTouchPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+        }
+      }}
+      onMouseUp={() => {
+        setIsMouseDragging(false);
+        getImageFromCanvas({
+          x: position.x,
+          y: position.y,
+          width: size.width,
+          height: size.height,
+        });
+      }}
       onTouchStart={(event) => {
         console.log(event);
         if (event.targetTouches.length === 2) {
@@ -189,6 +237,12 @@ function Frame({ video }: { video: HTMLVideoElement }) {
             y: event.targetTouches[0].clientY,
           });
         }
+        getImageFromCanvas({
+          x: position.x,
+          y: position.y,
+          width: size.width,
+          height: size.height,
+        });
       }}
       onTouchEnd={(event) => {
         event.preventDefault();
@@ -234,6 +288,7 @@ function Frame({ video }: { video: HTMLVideoElement }) {
             width: size.width,
             height: size.height,
             touchAction: "none",
+            opacity: 0
           }}
         />
       </div>
