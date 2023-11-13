@@ -10,7 +10,7 @@ export default function Camera() {
     const getVideoMedia = async () => {
       const mediaStream = await navigator.mediaDevices
         .getUserMedia({
-          video: { facingMode: facingModeExact, aspectRatio: 1, frameRate: 12 },
+          video: { facingMode: facingModeExact, aspectRatio: 1 },
         })
         .catch((error) => console.error(error));
       if (videoRef.current && mediaStream) {

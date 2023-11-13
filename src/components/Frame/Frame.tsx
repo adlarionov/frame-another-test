@@ -137,9 +137,6 @@ function Frame({ video }: { video: HTMLVideoElement }) {
             Math.max(0.85, deltaDistance / startPinchTouches.distance),
             1.25
           );
-          if (scale > 1.25 || scale < 0.85) {
-            return;
-          }
           // const deltaX =
           //   ((touchMove1.clientX + touchMove2.clientX) / 2 -
           //     startPinchTouches.startX) *
@@ -148,6 +145,16 @@ function Frame({ video }: { video: HTMLVideoElement }) {
           //   ((touchMove1.clientY + touchMove2.clientY) / 2 -
           //     startPinchTouches.startY) *
           //   2;
+
+          if (
+            position.x + size.width > video.clientWidth + 20 ||
+            position.y + size.height > video.clientHeight + 20
+          ) {
+            setPosition({
+              x: 0,
+              y: 0,
+            });
+          }
 
           setPinchTransform({
             scale: scale,
@@ -185,15 +192,6 @@ function Frame({ video }: { video: HTMLVideoElement }) {
       }}
       onTouchEnd={(event) => {
         event.preventDefault();
-        if (
-          position.x + size.width > video.clientWidth + 20 ||
-          position.y + size.height > video.clientHeight + 20
-        ) {
-          setPosition({
-            x: 0,
-            y: 0,
-          });
-        }
         setSize({
           height: 120 * pinchTransform.scale,
           width: 120 * pinchTransform.scale,
