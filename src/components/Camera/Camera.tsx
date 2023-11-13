@@ -10,7 +10,7 @@ export default function Camera() {
     const getVideoMedia = async () => {
       const mediaStream = await navigator.mediaDevices
         .getUserMedia({
-          video: { facingMode: facingModeExact, aspectRatio: 1 },
+          video: { facingMode: facingModeExact, aspectRatio: 1, frameRate: 12 },
         })
         .catch((error) => console.error(error));
       if (videoRef.current && mediaStream) {
@@ -27,6 +27,7 @@ export default function Camera() {
         style={{ border: "2px solid red" }}
         autoPlay
         playsInline
+        preload="auto"
         ref={videoRef}
         width="99%"
         height="auto"

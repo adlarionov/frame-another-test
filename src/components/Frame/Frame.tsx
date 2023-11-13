@@ -186,8 +186,8 @@ function Frame({ video }: { video: HTMLVideoElement }) {
       onTouchEnd={(event) => {
         event.preventDefault();
         if (
-          position.x + size.width + 20 > video.clientWidth ||
-          position.y + size.height + 20 > video.clientHeight
+          position.x + size.width > video.clientWidth + 20 ||
+          position.y + size.height > video.clientHeight + 20
         ) {
           setPosition({
             x: 0,
