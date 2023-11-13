@@ -185,6 +185,15 @@ function Frame({ video }: { video: HTMLVideoElement }) {
       }}
       onTouchEnd={(event) => {
         event.preventDefault();
+        if (
+          position.x + size.width > video.clientWidth ||
+          position.y + size.height > video.clientHeight
+        ) {
+          setPosition({
+            x: 0,
+            y: 0,
+          });
+        }
         setSize({
           height: 120 * pinchTransform.scale,
           width: 120 * pinchTransform.scale,
@@ -232,9 +241,9 @@ function Frame({ video }: { video: HTMLVideoElement }) {
       </div>
       <div style={{ position: "absolute", top: 550, left: "40%" }}>
         <p>
-          {size.height}
+          {video.clientWidth} {video.clientHeight}
           <br />
-          {position.x} {position.y}
+          {position.x + size.width} {position.y + size.height}
           <br />
         </p>
       </div>

@@ -3,9 +3,7 @@ import Frame from "../Frame/Frame";
 
 export default function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [facingModeExact, setFacingModeExact] = useState<
-    "user" | "environment"
-  >("environment");
+  const [facingModeExact, setFacingModeExact] = useState<string>("environment");
   const [startScanning, setStartScanning] = useState<boolean>(false);
 
   useEffect(() => {
