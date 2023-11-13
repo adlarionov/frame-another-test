@@ -3,15 +3,16 @@ import Frame from "../Frame/Frame";
 
 export default function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">(
-    "environment"
-  );
+  const [facingModeExact, setFacingModeExact] = useState<
+    "user" | "environment"
+  >("environment");
+  const [startScanning, setStartScanning] = useState<boolean>(false);
 
   useEffect(() => {
     const getVideoMedia = async () => {
       const mediaStream = await navigator.mediaDevices
         .getUserMedia({
-          video: { facingMode: { exact: "environment" } },
+          video: { facingMode: facingModeExact, aspectRatio: 1 },
         })
         .catch((error) => console.error(error));
       if (videoRef.current && mediaStream) {
@@ -20,7 +21,7 @@ export default function Camera() {
       }
     };
     getVideoMedia();
-  }, []);
+  }, [startScanning, facingModeExact]);
 
   return (
     <div>
@@ -33,13 +34,26 @@ export default function Camera() {
         height="auto"
       />
       {videoRef.current?.playsInline && <Frame video={videoRef.current} />}
-      <button
-        onClick={() =>
-          setFacingMode(facingMode === "user" ? "environment" : "user")
-        }
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
       >
-        Facing Mode
-      </button>
+        {startScanning && (
+          <button
+            onClick={() =>
+              setFacingModeExact(
+                facingModeExact === "user" ? "environment" : "user"
+              )
+            }
+          >
+            Facing Mode {facingModeExact}
+          </button>
+        )}
+        <button onClick={() => setStartScanning(true)}>Start Scanning</button>
+      </div>
     </div>
   );
 }
