@@ -45,6 +45,16 @@ function Frame({ video }: { video: HTMLVideoElement }) {
     }
   }, []);
 
+  if (
+    position.x + size.width > video.clientWidth + 20 ||
+    position.y + size.height > video.clientHeight + 20
+  ) {
+    setPosition({
+      x: 0,
+      y: 0,
+    });
+  }
+
   const calculateDistance = (touch1: Touch, touch2: Touch): number => {
     return Math.hypot(
       touch1.clientX - touch2.clientX,
@@ -145,16 +155,6 @@ function Frame({ video }: { video: HTMLVideoElement }) {
           //   ((touchMove1.clientY + touchMove2.clientY) / 2 -
           //     startPinchTouches.startY) *
           //   2;
-
-          if (
-            position.x + size.width > video.clientWidth + 20 ||
-            position.y + size.height > video.clientHeight + 20
-          ) {
-            setPosition({
-              x: 0,
-              y: 0,
-            });
-          }
 
           setPinchTransform({
             scale: scale,
