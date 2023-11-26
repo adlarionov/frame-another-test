@@ -3,8 +3,7 @@ import Frame from "../Frame/Frame";
 
 export default function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  // const [startScanning, setStartScanning] = useState<boolean>(false);
-  // const [stream, setStream] = useState<MediaStream | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const [facingMode, setFacingMode] = useState<string>("environment");
 
@@ -14,17 +13,19 @@ export default function Camera() {
     } else {
       setFacingMode("user");
     }
+    if (stream?.active) {
+      stream.getVideoTracks().forEach((track) => track.stop());
+    }
   };
 
   useEffect(() => {
     const handleStartCamera = async () => {
-      console.log("here camera");
       try {
         const mediaDevices = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: { facingMode },
+          video: { facingMode, aspectRatio: 1.0 },
         });
-        // setStream(mediaDevices);
+        setStream(mediaDevices);
         if (videoRef.current) {
           videoRef.current.srcObject = mediaDevices;
           videoRef.current.play();
@@ -35,7 +36,13 @@ export default function Camera() {
       }
     };
     handleStartCamera();
-  }, [facingMode]);
+  }, [facingMode, stream?.active]);
+
+  console.log(
+    stream
+      ?.getVideoTracks()
+      .forEach((track) => console.log(track.getConstraints()))
+  );
 
   // useEffect(() => {
   //   const startScanningFunc = async () => {
