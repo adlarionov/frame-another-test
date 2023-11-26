@@ -3,34 +3,47 @@ import Frame from "../Frame/Frame";
 
 export default function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [facingModeExact, setFacingModeExact] = useState<string>("environment");
   const [startScanning, setStartScanning] = useState<boolean>(false);
 
+  const [constraints, setConstraints] = useState({
+    aspectRatio: 1,
+    facingMode: { exact: "environment" },
+  });
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+
+  const stopScanning = () => {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+    }
+    setStartScanning(false);
+  };
+
   useEffect(() => {
-    const getVideoMedia = async () => {
-      const mediaStream = await navigator.mediaDevices
-        .getUserMedia({
-          video: { facingMode: facingModeExact, aspectRatio: 1 },
-        })
-        .catch((error) => console.error(error));
-      if (videoRef.current && mediaStream) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+    const startScanningFunc = async () => {
+      const mediaDevices = await navigator.mediaDevices.getUserMedia({
+        video: constraints,
+      });
+
+      if (videoRef.current && mediaDevices) {
+        videoRef.current.srcObject = mediaDevices;
+        await videoRef.current.play().catch((error) => console.error(error));
       }
+      setMediaStream(mediaDevices);
     };
-    getVideoMedia();
-  }, [startScanning, facingModeExact]);
+    if (startScanning) {
+      startScanningFunc();
+    }
+  }, [constraints, mediaStream, startScanning]);
 
   return (
     <div>
       <video
-        style={{ border: "2px solid red" }}
         autoPlay
         playsInline
         preload="auto"
         ref={videoRef}
         width="99%"
-        height="auto"
+        height="500"
       />
       {videoRef.current?.playsInline && <Frame video={videoRef.current} />}
       <div
@@ -43,15 +56,25 @@ export default function Camera() {
         {startScanning && (
           <button
             onClick={() =>
-              setFacingModeExact(
-                facingModeExact === "user" ? "environment" : "user"
-              )
+              setConstraints((prev) => {
+                return {
+                  aspectRatio: 1,
+                  facingMode: {
+                    exact:
+                      prev.facingMode.exact === "user" ? "environment" : "user",
+                  },
+                };
+              })
             }
           >
-            Facing Mode {facingModeExact}
+            Facing Mode {constraints.facingMode.exact}
           </button>
         )}
-        <button onClick={() => setStartScanning(true)}>Start Scanning</button>
+        <button
+          onClick={startScanning ? stopScanning : () => setStartScanning(true)}
+        >
+          {!startScanning ? "Start Scanning" : "Stop Scanning"}
+        </button>
       </div>
     </div>
   );

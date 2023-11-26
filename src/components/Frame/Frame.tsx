@@ -6,6 +6,7 @@ function Frame({ video }: { video: HTMLVideoElement }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isMouseDragging, setIsMouseDragging] = useState<boolean>(false);
+  const [isPinching, setIsPinching] = useState<boolean>(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({
     x: 0,
     y: 0,
@@ -166,7 +167,6 @@ function Frame({ video }: { video: HTMLVideoElement }) {
         });
       }}
       onTouchStart={(event) => {
-        console.log(event);
         if (event.targetTouches.length === 2) {
           event.preventDefault();
           const touch1 = event.targetTouches[0];
@@ -185,7 +185,9 @@ function Frame({ video }: { video: HTMLVideoElement }) {
       }}
       onTouchMove={(event) => {
         if (event.touches.length === 2) {
+          setIsPinching(true);
           event.preventDefault();
+
           const touchMove1 = event.touches[0];
           const touchMove2 = event.touches[1];
 
@@ -193,25 +195,31 @@ function Frame({ video }: { video: HTMLVideoElement }) {
 
           const scale = Math.min(
             Math.max(0.85, deltaDistance / startPinchTouches.distance),
-            1.25
+            1.3
           );
-          // const deltaX =
-          //   ((touchMove1.clientX + touchMove2.clientX) / 2 -
-          //     startPinchTouches.startX) *
-          //   2;
-          // const deltaY =
-          //   ((touchMove1.clientY + touchMove2.clientY) / 2 -
-          //     startPinchTouches.startY) *
-          //   2;
 
+          const deltaX =
+            ((touchMove1.clientX + touchMove2.clientX) / 2 -
+              startPinchTouches.startX) *
+            2;
+          const deltaY =
+            ((touchMove1.clientY + touchMove2.clientY) / 2 -
+              startPinchTouches.startY) *
+            2;
           setPinchTransform({
             scale: scale,
-            transform: `scale(${scale})`,
+            transform: `scale(${scale}) transform3d(${deltaX}, ${deltaY}, 0)`,
             zIndex: 9999,
           });
+          // setTimeout(() => {
+          //   alert(`${deltaX} ${deltaY}`);
+          // }, 1000);
         } else {
-          let offsetX = touchPosition.x - event.targetTouches[0].clientX;
-          let offsetY = touchPosition.y - event.targetTouches[0].clientY;
+          if (isPinching) {
+            return;
+          }
+          let offsetX = touchPosition.x - event.touches[0].clientX;
+          let offsetY = touchPosition.y - event.touches[0].clientY;
           if (
             position.x - offsetX <= 0 ||
             position.x - offsetX >=
@@ -233,8 +241,8 @@ function Frame({ video }: { video: HTMLVideoElement }) {
             };
           });
           setTouchPosition({
-            x: event.targetTouches[0].clientX,
-            y: event.targetTouches[0].clientY,
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY,
           });
         }
         getImageFromCanvas({
@@ -245,6 +253,7 @@ function Frame({ video }: { video: HTMLVideoElement }) {
         });
       }}
       onTouchEnd={(event) => {
+        setIsPinching(false);
         event.preventDefault();
         setSize({
           height: 120 * pinchTransform.scale,
@@ -288,16 +297,17 @@ function Frame({ video }: { video: HTMLVideoElement }) {
             width: size.width,
             height: size.height,
             touchAction: "none",
-            opacity: 0
+            opacity: 0,
           }}
         />
       </div>
-      <div style={{ position: "absolute", top: 550, left: "40%" }}>
+      <div style={{ position: "absolute", top: 700, left: "10px" }}>
         <p>
           {video.clientWidth} {video.clientHeight}
           <br />
           {position.x + size.width} {position.y + size.height}
           <br />
+          {String(isPinching)}
         </p>
       </div>
     </div>
