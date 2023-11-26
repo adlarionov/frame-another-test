@@ -4,17 +4,17 @@ import Frame from "../Frame/Frame";
 export default function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   // const [startScanning, setStartScanning] = useState<boolean>(false);
-  const [stream, setStream] = useState<MediaStream>();
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const [facingMode, setFacingMode] = useState<string>("environment");
 
   const handleStartCamera = async () => {
-    console.log('here camera')
+    console.log("here camera");
     try {
-      if (stream) {
-        stream.getVideoTracks().forEach((track) => track.stop());
-      }
-      console.log('here camera 2', facingMode)
+      // if (stream) {
+      //   stream.getVideoTracks().forEach((track) => track.stop());
+      //   console.log("here camera 2", facingMode);
+      // }
       const mediaDevices = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode, aspectRatio: 1 },
@@ -60,16 +60,14 @@ export default function Camera() {
 
   return (
     <div>
-      {stream && (
-        <video
-          autoPlay
-          playsInline
-          preload="auto"
-          ref={videoRef}
-          width="99%"
-          height="500"
-        />
-      )}
+      <video
+        autoPlay
+        playsInline
+        preload="auto"
+        ref={videoRef}
+        width="99%"
+        height="500"
+      />
       {videoRef.current?.playsInline && <Frame video={videoRef.current} />}
       <div
         style={{
