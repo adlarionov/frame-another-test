@@ -1,5 +1,5 @@
 import { CameraOutlined } from "@ant-design/icons";
-import { Button, Result, Space } from "antd";
+import { Button, Result, Space, Spin } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5QrcodeShim } from "html5-qrcode/esm/code-decoder";
 import {
@@ -16,7 +16,7 @@ export default function Camera({
   const [facingMode, setFacingMode] = useState<string>("environment");
   const [isCameraError, setIsCameraError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream>();
   const logger = useMemo(() => {
     return new BaseLoggger(false);
   }, []);
@@ -27,7 +27,7 @@ export default function Camera({
       false,
       logger
     );
-  }, []);
+  }, [logger]);
 
   const handleChangeFacingMode = () => {
     if (facingMode === "environment") {
@@ -40,7 +40,6 @@ export default function Camera({
     }
   };
   useEffect(() => {
-    alert(navigator.mediaDevices.getSupportedConstraints().facingMode);
     const handleStartCamera = async () => {
       try {
         await navigator.mediaDevices
@@ -71,15 +70,7 @@ export default function Camera({
       }
     };
     errorHandle();
-
-    return () => {
-      if (mediaStream && videoRef.current) {
-        videoRef.current.srcObject = null;
-        videoRef.current.pause();
-        mediaStream.getVideoTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [facingMode, mediaStream?.active]);
+  }, [facingMode]);
 
   const onCanvasChange = async (canvas: HTMLCanvasElement) => {
     await html5QrcodeFileShim
@@ -114,22 +105,20 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        <video
-          autoPlay
-          playsInline
-          preload="auto"
-          ref={videoRef}
-          width="100%"
-          height="100%"
-        />
-        {videoRef.current &&
-        videoRef.current.height > 10 &&
-        videoRef.current.playsInline ? (
-          <>
-            <Frame video={videoRef.current} onScan={onCanvasChange} />
-          </>
+        {mediaStream?.active ? (
+          <video
+            autoPlay
+            playsInline
+            preload="auto"
+            ref={videoRef}
+            width="100%"
+            height="100%"
+          />
         ) : (
-          <div>error</div>
+          <Spin />
+        )}
+        {videoRef.current && videoRef.current.playsInline && (
+          <Frame video={videoRef.current} onScan={onCanvasChange} />
         )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
