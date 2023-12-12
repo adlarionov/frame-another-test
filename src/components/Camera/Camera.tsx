@@ -40,7 +40,7 @@ export default function Camera({
     }
   };
   useEffect(() => {
-    console.log(navigator.mediaDevices.getSupportedConstraints());
+    alert(navigator.mediaDevices.getSupportedConstraints().facingMode);
     const handleStartCamera = async () => {
       try {
         await navigator.mediaDevices
@@ -114,16 +114,18 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        {videoRef.current && videoRef.current?.playsInline ? (
+        <video
+          autoPlay
+          playsInline
+          preload="auto"
+          ref={videoRef}
+          width="100%"
+          height="100%"
+        />
+        {videoRef.current &&
+        videoRef.current.height > 10 &&
+        videoRef.current.playsInline ? (
           <>
-            <video
-              autoPlay
-              playsInline
-              preload="auto"
-              ref={videoRef}
-              width="100%"
-              height="100%"
-            />
             <Frame video={videoRef.current} onScan={onCanvasChange} />
           </>
         ) : (
