@@ -1,5 +1,5 @@
 import { CameraOutlined } from "@ant-design/icons";
-import { Button, Result, Space, Spin } from "antd";
+import { Alert, Button, Result, Space, Spin } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5QrcodeShim } from "html5-qrcode/esm/code-decoder";
 import {
@@ -105,7 +105,7 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        {mediaStream ? (
+        {mediaStream && mediaStream.active ? (
           <>
             <video
               autoPlay
@@ -122,6 +122,7 @@ export default function Camera({
         ) : (
           <Spin />
         )}
+        {mediaStream && mediaStream.active === false && <Alert type="error" />}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
         <Button onClick={handleChangeFacingMode} icon={<CameraOutlined />}>
