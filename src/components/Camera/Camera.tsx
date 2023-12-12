@@ -105,20 +105,22 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        {mediaStream?.active ? (
-          <video
-            autoPlay
-            playsInline
-            preload="auto"
-            ref={videoRef}
-            width="100%"
-            height="100%"
-          />
+        {mediaStream ? (
+          <>
+            <video
+              autoPlay
+              playsInline
+              preload="auto"
+              ref={videoRef}
+              width="100%"
+              height="100%"
+            />
+            {videoRef.current && videoRef.current.playsInline && (
+              <Frame video={videoRef.current} onScan={onCanvasChange} />
+            )}
+          </>
         ) : (
           <Spin />
-        )}
-        {videoRef.current && videoRef.current.playsInline && (
-          <Frame video={videoRef.current} onScan={onCanvasChange} />
         )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
