@@ -4,7 +4,7 @@ import Camera from "./components/Camera/Camera";
 function App() {
   return (
     <>
-      <Camera />
+      <Camera setResult={(url) => setTimeout(() => alert(url), 1000)} />
     </>
   );
 }

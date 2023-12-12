@@ -1,88 +1,135 @@
-import { useEffect, useRef, useState } from "react";
-import Frame from "../Frame/Frame";
+import { CameraOutlined } from "@ant-design/icons";
+import { Button, Result, Space } from "antd";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Html5QrcodeShim } from "html5-qrcode/esm/code-decoder";
+import {
+  BaseLoggger,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode/esm/core";
+import Frame from '../Frame/Frame';
 
-export default function Camera() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-
+export default function Camera({
+  setResult,
+}: {
+  setResult: (url: string) => void;
+}) {
   const [facingMode, setFacingMode] = useState<string>("environment");
+  const [isCameraError, setIsCameraError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const logger = useMemo(() => {
+    return new BaseLoggger(false);
+  }, []);
+  const html5QrcodeFileShim = useMemo(() => {
+    return new Html5QrcodeShim(
+      [Html5QrcodeSupportedFormats.QR_CODE],
+      false,
+      false,
+      logger
+    );
+  }, []);
 
-  const changeFacingMode = () => {
-    if (facingMode === "user") {
-      setFacingMode("environment");
-    } else {
+  const handleChangeFacingMode = () => {
+    if (facingMode === "environment") {
       setFacingMode("user");
+    } else {
+      setFacingMode("environment");
     }
-    if (stream?.active) {
-      stream.getVideoTracks().forEach((track) => track.stop());
+    if (mediaStream) {
+      mediaStream.getVideoTracks().forEach((track) => track.stop());
     }
   };
-
   useEffect(() => {
     const handleStartCamera = async () => {
       try {
-        const mediaDevices = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode, aspectRatio: 1.0 },
-        });
-        setStream(mediaDevices);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaDevices;
-          videoRef.current.play();
-        }
+        await navigator.mediaDevices
+          .getUserMedia({
+            audio: false,
+            video: { facingMode, aspectRatio: 1.0 },
+          })
+          .then((stream) => {
+            setMediaStream(stream);
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play().catch((error) => console.log(error));
+            }
+          })
+          .catch((error) => console.error(error, "Promise error"));
       } catch (error) {
         console.error(error);
-        return;
       }
     };
     handleStartCamera();
-  }, [facingMode, stream?.active]);
 
-  console.log(
-    stream
-      ?.getVideoTracks()
-      .forEach((track) => console.log(track.getConstraints()))
-  );
+    const errorHandle = async () => {
+      try {
+        await handleStartCamera();
+      } catch (error) {
+        console.error("receive zoom caps", error);
+        setIsCameraError(true);
+      }
+    };
+    errorHandle();
 
-  // useEffect(() => {
-  //   const startScanningFunc = async () => {
-  //     const mediaDevices = await navigator.mediaDevices.getUserMedia({
-  //       audio: false,
-  //       video: { aspectRatio: 1, facingMode },
-  //     });
+    return () => {
+      if (mediaStream && videoRef.current) {
+        videoRef.current.srcObject = null;
+        videoRef.current.pause();
+        mediaStream.getVideoTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [facingMode, mediaStream?.active]);
 
-  //     if (videoRef.current && mediaDevices) {
-  //       videoRef.current.srcObject = mediaDevices;
-  //       await videoRef.current.play().catch((error) => console.error(error));
-  //     }
-  //   };
+  const onCanvasChange = async (canvas: HTMLCanvasElement) => {
+    await html5QrcodeFileShim
+      .decodeAsync(canvas)
+      .then((value) => {
+        setResult(value.text);
+      })
+      .catch((error: Error) => {
+        if (error.name === "NotFoundException") {
+          console.log(error.name, error.message, "QRcode не был прочитан");
+        } else {
+          console.error(error);
+        }
+      });
+  };
 
-  //   if (startScanning) {
-  //     console.log("inside use effect", facingMode);
-  //     startScanningFunc();
-  //   }
-  // }, [facingMode, startScanning]);
+  if (isCameraError) {
+    return (
+      <Result
+        status="error"
+        title="Не удалось получить изображение с камеры"
+        subTitle=" Возможно, необходимо выдать доступ к камере для браузера/приложения"
+        extra={
+          <Button type="primary" onClick={() => window.location.reload()}>
+            Попробовать снова
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
-    <div>
-      <video
-        autoPlay
-        playsInline
-        preload="auto"
-        ref={videoRef}
-        width="99%"
-        height="500"
-      />
-      {videoRef.current && <Frame video={videoRef.current} />}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        <button onClick={changeFacingMode}>Facing Mode {facingMode}</button>
-      </div>
-    </div>
+    <>
+      <Space direction="vertical" align="center" style={{ width: "100%" }}>
+        <video
+          autoPlay
+          playsInline
+          preload="auto"
+          ref={videoRef}
+          width="100%"
+          height="100%"
+        />
+        {videoRef.current?.playsInline && (
+          <Frame video={videoRef.current} onScan={onCanvasChange} />
+        )}
+      </Space>
+      <Space direction="vertical" align="center" style={{ width: "100%" }}>
+        <Button onClick={handleChangeFacingMode} icon={<CameraOutlined />}>
+          Сменить камеру
+        </Button>
+      </Space>
+    </>
   );
 }
