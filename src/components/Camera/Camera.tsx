@@ -6,7 +6,7 @@ import {
   BaseLoggger,
   Html5QrcodeSupportedFormats,
 } from "html5-qrcode/esm/core";
-import Frame from '../Frame/Frame';
+import Frame from "../Frame/Frame";
 
 export default function Camera({
   setResult,
@@ -40,6 +40,7 @@ export default function Camera({
     }
   };
   useEffect(() => {
+    console.log(navigator.mediaDevices.getSupportedConstraints());
     const handleStartCamera = async () => {
       try {
         await navigator.mediaDevices
@@ -113,16 +114,20 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        <video
-          autoPlay
-          playsInline
-          preload="auto"
-          ref={videoRef}
-          width="100%"
-          height="100%"
-        />
-        {videoRef.current?.playsInline && (
-          <Frame video={videoRef.current} onScan={onCanvasChange} />
+        {videoRef.current && videoRef.current?.playsInline ? (
+          <>
+            <video
+              autoPlay
+              playsInline
+              preload="auto"
+              ref={videoRef}
+              width="100%"
+              height="100%"
+            />
+            <Frame video={videoRef.current} onScan={onCanvasChange} />
+          </>
+        ) : (
+          <div>error</div>
         )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
