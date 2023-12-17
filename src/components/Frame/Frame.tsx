@@ -43,6 +43,14 @@ function Frame({
     height: 120,
   });
 
+  console.log(
+    video.width,
+    video.videoWidth,
+    video.clientWidth,
+    video.offsetWidth,
+    video.scrollWidth
+  );
+
   useEffect(() => {
     if (containerRef.current) {
       setPosition({

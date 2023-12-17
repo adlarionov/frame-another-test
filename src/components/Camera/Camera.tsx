@@ -1,5 +1,5 @@
 import { CameraOutlined } from "@ant-design/icons";
-import { Alert, Button, Result, Space, Spin } from "antd";
+import { Button, Result, Space } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5QrcodeShim } from "html5-qrcode/esm/code-decoder";
 import {
@@ -17,6 +17,9 @@ export default function Camera({
   const [isCameraError, setIsCameraError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream>();
+
+  const [isVideoRendered, setIsVideoRendered] = useState<boolean>();
+
   const logger = useMemo(() => {
     return new BaseLoggger(false);
   }, []);
@@ -49,7 +52,7 @@ export default function Camera({
           })
           .then((stream) => {
             setMediaStream(stream);
-            if (videoRef.current) {
+            if (videoRef.current && videoRef.current.isConnected) {
               videoRef.current.srcObject = stream;
               videoRef.current.play().catch((error) => console.log(error));
             }
@@ -72,6 +75,13 @@ export default function Camera({
     errorHandle();
   }, [facingMode]);
 
+  useEffect(() => {
+    if (videoRef.current !== null) {
+      setIsVideoRendered(true);
+      videoRef.current.click();
+    }
+  }, [videoRef]);
+
   const onCanvasChange = async (canvas: HTMLCanvasElement) => {
     await html5QrcodeFileShim
       .decodeAsync(canvas)
@@ -87,7 +97,7 @@ export default function Camera({
       });
   };
 
-  if (isCameraError) {
+  if (isCameraError || (mediaStream && mediaStream.active === false)) {
     return (
       <Result
         status="error"
@@ -105,24 +115,17 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        {mediaStream && mediaStream.active ? (
-          <>
-            <video
-              autoPlay
-              playsInline
-              preload="auto"
-              ref={videoRef}
-              width="100%"
-              height="100%"
-            />
-            {videoRef.current && videoRef.current.playsInline && (
-              <Frame video={videoRef.current} onScan={onCanvasChange} />
-            )}
-          </>
-        ) : (
-          <Spin />
+        <video
+          autoPlay
+          playsInline
+          preload="auto"
+          ref={videoRef}
+          width="100%"
+          height="100%"
+        />
+        {videoRef.current && isVideoRendered && (
+          <Frame video={videoRef.current} onScan={onCanvasChange} />
         )}
-        {mediaStream && mediaStream.active === false && <Alert type="error" />}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
         <Button onClick={handleChangeFacingMode} icon={<CameraOutlined />}>
