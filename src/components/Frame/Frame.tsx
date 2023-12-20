@@ -20,6 +20,7 @@ function Frame({
     x: 0,
     y: 0,
   });
+  const [state, setState] = useState<string>("0 fingers");
   const [startPinchTouches, setStartPinchTouches] = useState<{
     startX: number;
     startY: number;
@@ -42,14 +43,6 @@ function Frame({
     width: 120,
     height: 120,
   });
-
-  console.log(
-    video.width,
-    video.videoWidth,
-    video.clientWidth,
-    video.offsetWidth,
-    video.scrollWidth
-  );
 
   useEffect(() => {
     if (containerRef.current) {
@@ -179,29 +172,35 @@ function Frame({
         });
       }}
       onTouchStart={(event) => {
-        if (event.targetTouches.length === 2) {
+        if (event.touches.length === 2) {
           event.preventDefault();
-          const touch1 = event.targetTouches[0];
-          const touch2 = event.targetTouches[1];
+          const touch1 = event.touches[0];
+          const touch2 = event.touches[1];
           setStartPinchTouches({
             startX: (touch1.clientX + touch2.clientX) / 2,
             startY: (touch1.clientY + touch2.clientY) / 2,
             distance: calculateDistance(touch1, touch2),
           });
+          // setTouchPosition({
+          //   x: event.touches[0].clientX,
+          //   y: event.touches[0].clientY,
+          // });
         } else {
           setTouchPosition({
-            x: event.targetTouches[0].clientX,
-            y: event.targetTouches[0].clientY,
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY,
           });
         }
       }}
       onTouchMove={(event) => {
         if (event.touches.length === 2) {
+          setState("2 fingers");
           event.preventDefault();
           const touchMove1 = event.touches[0];
           const touchMove2 = event.touches[1];
 
           const deltaDistance = calculateDistance(touchMove1, touchMove2);
+          console.log(startPinchTouches.distance);
 
           const scale = Math.min(
             Math.max(0.85, deltaDistance / startPinchTouches.distance),
@@ -222,6 +221,7 @@ function Frame({
             zIndex: 9999,
           });
         } else {
+          setState("1 finger, on move");
           let offsetX = touchPosition.x - event.targetTouches[0].clientX;
           let offsetY = touchPosition.y - event.targetTouches[0].clientY;
           if (
@@ -258,14 +258,14 @@ function Frame({
       }}
       onTouchEnd={(event) => {
         event.preventDefault();
-        setSize({
-          height: 120 * pinchTransform.scale,
-          width: 120 * pinchTransform.scale,
-        });
-        setPinchTransform((prevTransform) => {
+        // setSize({
+        //   height: 120 * pinchTransform.scale,
+        //   width: 120 * pinchTransform.scale,
+        // });
+        setPinchTransform((prevValue) => {
           return {
-            scale: prevTransform.scale,
-            transform: "",
+            scale: prevValue.scale,
+            transform: `scale(${prevValue.scale})`,
             zIndex: 1,
           };
         });
@@ -285,8 +285,10 @@ function Frame({
           left: position.x,
           width: size.width,
           height: size.height,
-          scale: pinchTransform.scale,
           transform: pinchTransform.transform,
+          WebkitTransform: pinchTransform.transform,
+          transition: 'transform 100ms ease-in-out',
+          WebkitTransition: '-webkit-transform 100ms ease-in-out',
           zIndex: pinchTransform.zIndex,
         }}
       >
@@ -303,6 +305,15 @@ function Frame({
             opacity: 0,
           }}
         />
+      </div>
+      <div style={{ position: "absolute", top: "600px", right: 0, left: 0 }}>
+        <p>
+          Position: {position.x} {position.y}
+        </p>
+        <p>
+          Pinch: {pinchTransform.scale} {pinchTransform.transform}
+        </p>
+        <p>{state}</p>
       </div>
     </div>
   );

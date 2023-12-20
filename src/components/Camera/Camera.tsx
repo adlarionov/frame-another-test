@@ -116,7 +116,6 @@ export default function Camera({
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
         <video
-          autoPlay
           playsInline
           preload="auto"
           ref={videoRef}
