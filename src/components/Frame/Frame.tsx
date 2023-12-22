@@ -1,74 +1,34 @@
-import { Touch, useEffect, useRef, useState } from "react";
-
+import { useRef, useState } from "react";
 import styles from "./Frame.module.css";
 
-function Frame({
+const Frame = ({
   video,
   onScan,
 }: {
   video: HTMLVideoElement;
   onScan: (value: HTMLCanvasElement) => void;
-}) {
+}) => {
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const draggableRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isMouseDragging, setIsMouseDragging] = useState<boolean>(false);
-  const [position, setPosition] = useState<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
-  const [touchPosition, setTouchPosition] = useState<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
-  const [state, setState] = useState<string>("0 fingers");
-  const [startPinchTouches, setStartPinchTouches] = useState<{
-    startX: number;
-    startY: number;
-    distance: number;
+  const [initialPinchDistance, setInitialPinchDistance] = useState<number>(0);
+  const [dragOffset, setDragOffset] = useState<{
+    offsetX: number;
+    offsetY: number;
   }>({
-    startX: 0,
-    startY: 0,
-    distance: 0,
+    offsetX: 0,
+    offsetY: 0,
   });
-  const [pinchTransform, setPinchTransform] = useState<{
-    scale: number;
-    transform: string;
-    zIndex: number;
+  // FIXME: make object of initialSize
+  const [initialSize, setInitialSize] = useState<{
+    initialWidth: number;
+    initialHeight: number;
   }>({
-    scale: 1,
-    transform: "",
-    zIndex: 1,
+    initialHeight: 0,
+    initialWidth: 0,
   });
-  const [size, setSize] = useState<{ width: number; height: number }>({
-    width: 120,
-    height: 120,
-  });
-
-  useEffect(() => {
-    if (containerRef.current) {
-      setPosition({
-        x: (containerRef.current.offsetWidth - 120) / 2,
-        y: (containerRef.current.offsetHeight - 120) / 2,
-      });
-    }
-  }, []);
-
-  if (
-    position.x + size.width > video.clientWidth + 20 ||
-    position.y + size.height > video.clientHeight + 20
-  ) {
-    setPosition({
-      x: 0,
-      y: 0,
-    });
-  }
-
-  const calculateDistance = (touch1: Touch, touch2: Touch): number => {
-    return Math.hypot(
-      touch1.clientX - touch2.clientX,
-      touch1.clientY - touch2.clientY
-    );
-  };
 
   const getImageFromCanvas = (canvasProps: {
     x: number;
@@ -77,12 +37,10 @@ function Frame({
     height: number;
   }) => {
     if (canvasRef.current && video) {
-      canvasRef.current.width = size.width;
-      canvasRef.current.height = size.height;
       const canvasContext = canvasRef.current.getContext("2d");
 
-      const xMultipler = canvasProps.x / (video?.clientWidth || 0);
-      const yMultipler = canvasProps.y / (video?.clientHeight || 0);
+      const xMultipler = canvasProps.x / (video.clientWidth || 0);
+      const yMultipler = canvasProps.y / (video.clientHeight || 0);
 
       const sourceX = xMultipler * video.videoWidth;
       const sourceY = yMultipler * video.videoHeight;
@@ -114,209 +72,154 @@ function Frame({
     }
   };
 
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    if (draggableRef.current) {
+      if (e.touches.length === 2) {
+        setIsResizing(true);
+        const distance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        setInitialPinchDistance(distance);
+        setInitialSize({
+          initialHeight: draggableRef.current.clientHeight,
+          initialWidth: draggableRef.current.clientWidth,
+        });
+      } else {
+        setIsDragging(true);
+        const boundingRect = draggableRef.current.getBoundingClientRect();
+        setDragOffset({
+          offsetX: touch1.clientX - boundingRect.left,
+          offsetY: touch1.clientY - boundingRect.top,
+        });
+      }
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    if (draggableRef.current) {
+      if (isResizing && e.touches.length === 2) {
+        setIsDragging(false);
+        e.preventDefault();
+
+        const currentDistance = Math.hypot(
+          touch2.clientX - touch1.clientX,
+          touch2.clientY - touch1.clientY
+        );
+        const scaleFactor = currentDistance / initialPinchDistance;
+
+        const newWidth = initialSize.initialWidth * scaleFactor;
+        const newHeight = initialSize.initialHeight * scaleFactor;
+
+        if (newHeight > 180 || newHeight < 90) {
+          return;
+        }
+
+        if (
+          draggableRef.current.offsetTop + newHeight >
+            document.body.clientWidth - 5 ||
+          draggableRef.current.offsetLeft + newWidth >
+            document.body.clientWidth - 5
+        ) {
+          return;
+        }
+
+        draggableRef.current.style.width = `${newWidth}px`;
+        draggableRef.current.style.height = `${newHeight}px`;
+      } else {
+        if (containerRef.current && isDragging) {
+          const x = touch1.clientX - dragOffset.offsetX;
+          const y = touch1.clientY - dragOffset.offsetY;
+
+          const maxX =
+            containerRef.current.clientWidth - draggableRef.current.clientWidth;
+          const maxY =
+            containerRef.current.clientHeight -
+            draggableRef.current.clientHeight;
+
+          const validX = Math.min(Math.max(0, x), maxX);
+          const validY = Math.min(Math.max(0, y), maxY);
+
+          draggableRef.current.style.left = `${validX}px`;
+          draggableRef.current.style.top = `${validY}px`;
+        }
+      }
+      getImageFromCanvas({
+        height: draggableRef.current.offsetHeight,
+        width: draggableRef.current.offsetWidth,
+        x: draggableRef.current.offsetLeft,
+        y: draggableRef.current.offsetTop,
+      });
+    }
+  };
+
+  const onTouchEnd = () => {
+    setIsResizing(false);
+    setIsDragging(false);
+    if (draggableRef.current)
+      getImageFromCanvas({
+        height: draggableRef.current.offsetHeight,
+        width: draggableRef.current.offsetWidth,
+        x: draggableRef.current.offsetLeft,
+        y: draggableRef.current.offsetTop,
+      });
+  };
+
   return (
     <div
+      className={styles.frame}
       ref={containerRef}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
       style={{
         position: "absolute",
-        zIndex: 1,
-        top: video.offsetTop,
-        left: video.offsetLeft,
-        width: video.clientWidth,
-        height: video.clientHeight,
-      }}
-      onMouseDown={(event) => {
-        setIsMouseDragging(true);
-        setTouchPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-      }}
-      onMouseMove={(event) => {
-        if (isMouseDragging) {
-          let offsetX = touchPosition.x - event.clientX;
-          let offsetY = touchPosition.y - event.clientY;
-          if (
-            position.x - offsetX <= 0 ||
-            position.x - offsetX >=
-              containerRef.current!.offsetWidth - size.width
-          ) {
-            offsetX = 0;
-          }
-          if (
-            position.y - offsetY <= 0 ||
-            position.y - offsetY >=
-              containerRef.current!.offsetHeight - size.height
-          ) {
-            offsetY = 0;
-          }
-          setPosition((prevPosition) => {
-            return {
-              x: prevPosition.x - offsetX,
-              y: prevPosition.y - offsetY,
-            };
-          });
-          setTouchPosition({
-            x: event.clientX,
-            y: event.clientY,
-          });
-        }
-      }}
-      onMouseUp={() => {
-        setIsMouseDragging(false);
-        getImageFromCanvas({
-          x: position.x,
-          y: position.y,
-          width: size.width,
-          height: size.height,
-        });
-      }}
-      onTouchStart={(event) => {
-        if (event.touches.length === 2) {
-          event.preventDefault();
-          const touch1 = event.touches[0];
-          const touch2 = event.touches[1];
-          setStartPinchTouches({
-            startX: (touch1.clientX + touch2.clientX) / 2,
-            startY: (touch1.clientY + touch2.clientY) / 2,
-            distance: calculateDistance(touch1, touch2),
-          });
-          // setTouchPosition({
-          //   x: event.touches[0].clientX,
-          //   y: event.touches[0].clientY,
-          // });
-        } else {
-          setTouchPosition({
-            x: event.touches[0].clientX,
-            y: event.touches[0].clientY,
-          });
-        }
-      }}
-      onTouchMove={(event) => {
-        if (event.touches.length === 2) {
-          setState("2 fingers");
-          event.preventDefault();
-          const touchMove1 = event.touches[0];
-          const touchMove2 = event.touches[1];
-
-          const deltaDistance = calculateDistance(touchMove1, touchMove2);
-          console.log(startPinchTouches.distance);
-
-          const scale = Math.min(
-            Math.max(0.85, deltaDistance / startPinchTouches.distance),
-            1.3
-          );
-          // const deltaX =
-          //   ((touchMove1.clientX + touchMove2.clientX) / 2 -
-          //     startPinchTouches.startX) *
-          //   2;
-          // const deltaY =
-          //   ((touchMove1.clientY + touchMove2.clientY) / 2 -
-          //     startPinchTouches.startY) *
-          //   2;
-
-          setPinchTransform({
-            scale,
-            transform: `scale(${scale})`,
-            zIndex: 9999,
-          });
-        } else {
-          setState("1 finger, on move");
-          let offsetX = touchPosition.x - event.targetTouches[0].clientX;
-          let offsetY = touchPosition.y - event.targetTouches[0].clientY;
-          if (
-            position.x - offsetX <= 0 ||
-            position.x - offsetX >=
-              containerRef.current!.offsetWidth - size.width
-          ) {
-            offsetX = 0;
-          }
-          if (
-            position.y - offsetY <= 0 ||
-            position.y - offsetY >=
-              containerRef.current!.offsetHeight - size.height
-          ) {
-            offsetY = 0;
-          }
-          setPosition((prevPosition) => {
-            return {
-              x: prevPosition.x - offsetX,
-              y: prevPosition.y - offsetY,
-            };
-          });
-          setTouchPosition({
-            x: event.touches[0].clientX,
-            y: event.touches[0].clientY,
-          });
-        }
-        getImageFromCanvas({
-          x: position.x,
-          y: position.y,
-          width: size.width,
-          height: size.height,
-        });
-      }}
-      onTouchEnd={(event) => {
-        event.preventDefault();
-        // setSize({
-        //   height: 120 * pinchTransform.scale,
-        //   width: 120 * pinchTransform.scale,
-        // });
-        setPinchTransform((prevValue) => {
-          return {
-            scale: prevValue.scale,
-            transform: `scale(${prevValue.scale})`,
-            zIndex: 1,
-          };
-        });
-        getImageFromCanvas({
-          x: position.x,
-          y: position.y,
-          width: size.width,
-          height: size.height,
-        });
+        zIndex: 9999,
+        width: document.body.clientWidth - 5,
+        height: document.body.clientWidth - 5,
+        top: 0,
+        left: 0,
+        border: "2px solid blue",
+        touchAction: "none",
       }}
     >
       <div
         className={styles.frame}
+        ref={draggableRef}
         style={{
           position: "absolute",
-          top: position.y,
-          left: position.x,
-          width: size.width,
-          height: size.height,
-          transform: pinchTransform.transform,
-          WebkitTransform: pinchTransform.transform,
-          transition: 'transform 100ms ease-in-out',
-          WebkitTransition: '-webkit-transform 100ms ease-in-out',
-          zIndex: pinchTransform.zIndex,
+          width: "120px",
+          height: "120px",
+          top: (document.body.clientWidth - 125) / 2,
+          left: (document.body.clientWidth - 125) / 2,
         }}
       >
         <div className={styles.frame__top_left} />
         <div className={styles.frame__top_right} />
         <div className={styles.frame__bottom_left} />
         <div className={styles.frame__bottom_right} />
-        <canvas
-          ref={canvasRef}
-          style={{
-            width: size.width,
-            height: size.height,
-            touchAction: "none",
-            opacity: 0,
-          }}
-        />
-      </div>
-      <div style={{ position: "absolute", top: "600px", right: 0, left: 0 }}>
-        <p>
-          Position: {position.x} {position.y}
-        </p>
-        <p>
-          Pinch: {pinchTransform.scale} {pinchTransform.transform}
-        </p>
-        <p>{state}</p>
+        {draggableRef.current && (
+          <canvas
+            ref={canvasRef}
+            style={{
+              width: draggableRef.current.style.width,
+              height: draggableRef.current.style.height,
+              touchAction: "none",
+              opacity: 0,
+            }}
+          />
+        )}
+
+        <div style={{ position: "absolute", top: "500px" }}>
+          {draggableRef.current && draggableRef.current.offsetTop}
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default Frame;

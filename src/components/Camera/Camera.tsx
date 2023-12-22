@@ -122,9 +122,12 @@ export default function Camera({
           width="100%"
           height="100%"
         />
-        {videoRef.current && isVideoRendered && (
-          <Frame video={videoRef.current} onScan={onCanvasChange} />
-        )}
+        {videoRef.current &&
+          mediaStream &&
+          mediaStream.active &&
+          isVideoRendered && (
+            <Frame video={videoRef.current} onScan={onCanvasChange} />
+          )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
         <Button onClick={handleChangeFacingMode} icon={<CameraOutlined />}>
