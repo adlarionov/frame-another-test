@@ -183,7 +183,6 @@ const Frame = ({
         height: document.body.clientWidth - 5,
         top: 0,
         left: 0,
-        border: "2px solid blue",
         touchAction: "none",
       }}
     >
@@ -213,10 +212,6 @@ const Frame = ({
             }}
           />
         )}
-
-        <div style={{ position: "absolute", top: "500px" }}>
-          {draggableRef.current && draggableRef.current.offsetTop}
-        </div>
       </div>
     </div>
   );
