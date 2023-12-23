@@ -14,11 +14,10 @@ export default function Camera({
   setResult: (url: string) => void;
 }) {
   const [facingMode, setFacingMode] = useState<string>("environment");
+  const [temp, setTemp] = useState<string>("");
   const [isCameraError, setIsCameraError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [mediaStream, setMediaStream] = useState<MediaStream>();
-
-  const [isVideoRendered, setIsVideoRendered] = useState<boolean>();
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
   const logger = useMemo(() => {
     return new BaseLoggger(false);
@@ -38,11 +37,20 @@ export default function Camera({
     } else {
       setFacingMode("environment");
     }
-    if (mediaStream) {
-      mediaStream.getVideoTracks().forEach((track) => track.stop());
+    if (mediaStream && videoRef.current) {
+      videoRef.current.pause();
+      const tracks = mediaStream.getTracks();
+      tracks.forEach((track) => track.stop());
+      videoRef.current.load();
+      videoRef.current.srcObject = null;
+      setMediaStream(null);
     }
   };
+
   useEffect(() => {
+    // if (videoRef.current) {
+    //   setTemp("inside load event");
+    // }
     const handleStartCamera = async () => {
       try {
         await navigator.mediaDevices
@@ -52,12 +60,13 @@ export default function Camera({
           })
           .then((stream) => {
             setMediaStream(stream);
-            if (videoRef.current && videoRef.current.isConnected) {
+            setTemp("inside then");
+            if (videoRef.current) {
               videoRef.current.srcObject = stream;
               videoRef.current.play().catch((error) => console.log(error));
             }
           })
-          .catch((error) => console.error(error, "Promise error"));
+          .catch((error) => console.error(error)); // FIXME: ERROR IS HERE
       } catch (error) {
         console.error(error);
       }
@@ -66,21 +75,15 @@ export default function Camera({
 
     const errorHandle = async () => {
       try {
-        await handleStartCamera();
+        handleStartCamera();
       } catch (error) {
-        console.error("receive zoom caps", error);
+        console.error("Error", error);
+        setTemp("errorr");
         setIsCameraError(true);
       }
     };
     errorHandle();
   }, [facingMode]);
-
-  useEffect(() => {
-    if (videoRef.current !== null) {
-      setIsVideoRendered(true);
-      videoRef.current.click();
-    }
-  }, [videoRef]);
 
   const onCanvasChange = async (canvas: HTMLCanvasElement) => {
     await html5QrcodeFileShim
@@ -97,7 +100,7 @@ export default function Camera({
       });
   };
 
-  if (isCameraError || (mediaStream && mediaStream.active === false)) {
+  if (isCameraError && mediaStream && mediaStream.active === false) {
     return (
       <Result
         status="error"
@@ -115,24 +118,16 @@ export default function Camera({
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        <video
-          playsInline
-          preload="auto"
-          ref={videoRef}
-          width="100%"
-          height="100%"
-        />
-        {videoRef.current &&
-          mediaStream &&
-          mediaStream.active &&
-          isVideoRendered && (
-            <Frame video={videoRef.current} onScan={onCanvasChange} />
-          )}
+        <video ref={videoRef} width="100%" height="100%" />
+        {videoRef.current && mediaStream && mediaStream.active && (
+          <Frame video={videoRef.current} onScan={onCanvasChange} />
+        )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
         <Button onClick={handleChangeFacingMode} icon={<CameraOutlined />}>
           Сменить камеру
         </Button>
+        {temp}
       </Space>
     </>
   );

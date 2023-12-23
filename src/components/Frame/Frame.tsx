@@ -37,6 +37,8 @@ const Frame = ({
     height: number;
   }) => {
     if (canvasRef.current && video) {
+      canvasRef.current.width = canvasProps.width;
+      canvasRef.current.height = canvasProps.height;
       const canvasContext = canvasRef.current.getContext("2d");
 
       const xMultipler = canvasProps.x / (video.clientWidth || 0);
