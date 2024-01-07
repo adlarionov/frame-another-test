@@ -100,7 +100,7 @@ export default function AnotherCamera() {
         options={options}
         value={activeCamera?.deviceId}
         onChange={(value) => changeFacingMode(value)}
-        style={{ width: "40%" }}
+        style={{ width: "fit-content" }}
       />
     </div>
   );

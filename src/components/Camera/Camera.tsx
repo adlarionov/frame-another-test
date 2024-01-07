@@ -1,5 +1,5 @@
 import { CameraOutlined } from "@ant-design/icons";
-import { Button, Result, Space } from "antd";
+import { Button, Space } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5QrcodeShim } from "html5-qrcode/esm/code-decoder";
 import {
