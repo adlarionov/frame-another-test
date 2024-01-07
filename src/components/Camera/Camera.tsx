@@ -13,11 +13,11 @@ export default function Camera({
 }: {
   setResult: (url: string) => void;
 }) {
-  const [facingMode, setFacingMode] = useState<string>("environment");
-  const [temp, setTemp] = useState<string>("");
-  const [isCameraError, setIsCameraError] = useState(false);
+  // const [cameraError, setCameraError] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [activeCamera, setActiveCamera] = useState<MediaDeviceInfo>();
+  const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
 
   const logger = useMemo(() => {
     return new BaseLoggger(false);
@@ -31,61 +31,7 @@ export default function Camera({
     );
   }, [logger]);
 
-  const handleChangeFacingMode = () => {
-    if (facingMode === "environment") {
-      setFacingMode("user");
-    } else {
-      setFacingMode("environment");
-    }
-    if (mediaStream && videoRef.current) {
-      videoRef.current.pause();
-      const tracks = mediaStream.getTracks();
-      tracks.forEach((track) => track.stop());
-      videoRef.current.load();
-      videoRef.current.srcObject = null;
-      setMediaStream(null);
-    }
-  };
-
-  useEffect(() => {
-    // if (videoRef.current) {
-    //   setTemp("inside load event");
-    // }
-    const handleStartCamera = async () => {
-      try {
-        await navigator.mediaDevices
-          .getUserMedia({
-            audio: false,
-            video: { facingMode, aspectRatio: 1.0 },
-          })
-          .then((stream) => {
-            setMediaStream(stream);
-            setTemp("inside then");
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              videoRef.current.play().catch((error) => console.log(error));
-            }
-          })
-          .catch((error) => console.error(error)); // FIXME: ERROR IS HERE
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    handleStartCamera();
-
-    const errorHandle = async () => {
-      try {
-        handleStartCamera();
-      } catch (error) {
-        console.error("Error", error);
-        setTemp("errorr");
-        setIsCameraError(true);
-      }
-    };
-    errorHandle();
-  }, [facingMode]);
-
-  const onCanvasChange = async (canvas: HTMLCanvasElement) => {
+  const onFrameMove = async (canvas: HTMLCanvasElement) => {
     await html5QrcodeFileShim
       .decodeAsync(canvas)
       .then((value) => {
@@ -100,34 +46,112 @@ export default function Camera({
       });
   };
 
-  if (isCameraError && mediaStream && mediaStream.active === false) {
-    return (
-      <Result
-        status="error"
-        title="Не удалось получить изображение с камеры"
-        subTitle=" Возможно, необходимо выдать доступ к камере для браузера/приложения"
-        extra={
-          <Button type="primary" onClick={() => window.location.reload()}>
-            Попробовать снова
-          </Button>
+  const getDevices = () => {
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      const filtered = devices.filter((device) => {
+        if (device.kind === "videoinput" && device.label) {
+          return device;
         }
-      />
-    );
-  }
+      });
+      setCameras(filtered);
+    });
+  };
+
+  const stopMedia = (media: MediaStream) => {
+    setCurrentStream(null);
+    media.getTracks().forEach((track) => {
+      track.stop();
+    });
+  };
+
+  const startMedia = (activeCamera: MediaDeviceInfo) => {
+    if (currentStream !== null) {
+      stopMedia(currentStream);
+      // alert(activeCamera.deviceId);
+    }
+    if (activeCamera.label.includes("front")) {
+      navigator.mediaDevices
+        .getUserMedia({
+          audio: false,
+          video: {
+            ...activeCamera,
+            aspectRatio: 1.0,
+            facingMode: { exact: "user", ideal: "user" },
+          },
+        })
+        .then((stream) => {
+          if (videoRef.current) {
+            setCurrentStream(stream);
+            alert(stream.getTracks());
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch((error) => alert(error));
+          }
+          // alert("here");
+        })
+        .catch((error) => alert(error));
+    } else {
+      navigator.mediaDevices
+        .getUserMedia({
+          audio: false,
+          video: {
+            ...activeCamera,
+            aspectRatio: 1.0,
+            facingMode: { exact: "environment", ideal: "environment" },
+          },
+        })
+        .then((stream) => {
+          if (videoRef.current) {
+            setCurrentStream(stream);
+            alert(stream.getTracks());
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch((error) => alert(error));
+          }
+        })
+        .catch((error) => alert(error));
+    }
+  };
+
+  useEffect(() => {
+    getDevices();
+  }, []);
+
+  const changeFacingMode = () => {
+    const camera = cameras.filter((camera) => {
+      if (activeCamera && camera.deviceId !== activeCamera.deviceId) {
+        return camera;
+      }
+    });
+    setActiveCamera(camera[0]);
+    startMedia(camera[0]);
+  };
+
+  // if (cameraError || (mediaStream && mediaStream.active === false)) {
+  //   return (
+  //     <Result
+  //       status="error"
+  //       title="Не удалось получить изображение с камеры"
+  //       subTitle=" Возможно, необходимо выдать доступ к камере для браузера/приложения"
+  //       extra={
+  //         <Button type="primary" onClick={() => window.location.reload()}>
+  //           Попробовать снова
+  //         </Button>
+  //       }
+  //     />
+  //   );
+  // }
 
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        <video ref={videoRef} width="100%" height="100%" />
-        {videoRef.current && mediaStream && mediaStream.active && (
-          <Frame video={videoRef.current} onScan={onCanvasChange} />
+        <video ref={videoRef} autoPlay loop width="100%" height="100%" />
+        {videoRef.current && (
+          <Frame video={videoRef.current} onScan={onFrameMove} />
         )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        <Button onClick={handleChangeFacingMode} icon={<CameraOutlined />}>
+        <Button onClick={changeFacingMode} icon={<CameraOutlined />}>
           Сменить камеру
         </Button>
-        {temp}
       </Space>
     </>
   );
