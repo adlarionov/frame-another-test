@@ -1,5 +1,5 @@
 import { CameraOutlined } from "@ant-design/icons";
-import { Button, Space } from "antd";
+import { Button, Result, Space, Spin } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html5QrcodeShim } from "html5-qrcode/esm/code-decoder";
 import {
@@ -13,11 +13,11 @@ export default function Camera({
 }: {
   setResult: (url: string) => void;
 }) {
-  // const [cameraError, setCameraError] = useState<string>("");
+  const [cameraError, setCameraError] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
-  const [activeCamera, setActiveCamera] = useState<MediaDeviceInfo>();
+  const [facingMode, setFacingMode] = useState<string>("environment");
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const logger = useMemo(() => {
     return new BaseLoggger(false);
@@ -46,106 +46,84 @@ export default function Camera({
       });
   };
 
-  const getDevices = () => {
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      const filtered = devices.filter((device) => {
-        if (device.kind === "videoinput" && device.label) {
-          return device;
-        }
-      });
-      setCameras(filtered);
-    });
-  };
-
   const stopMedia = (media: MediaStream) => {
     setCurrentStream(null);
     media.getTracks().forEach((track) => {
+      // alert(track.getSettings().facingMode);
+      if (videoRef.current) videoRef.current.srcObject = null;
       track.stop();
     });
   };
 
-  const startMedia = (activeCamera: MediaDeviceInfo) => {
-    if (currentStream !== null) {
-      stopMedia(currentStream);
-      // alert(activeCamera.deviceId);
-    }
-    if (activeCamera.label.includes("front")) {
-      navigator.mediaDevices
-        .getUserMedia({
-          audio: false,
-          video: {
-            ...activeCamera,
-            aspectRatio: 1.0,
-            facingMode: { exact: "user", ideal: "user" },
-          },
-        })
-        .then((stream) => {
-          if (videoRef.current) {
-            setCurrentStream(stream);
-            alert(stream.getTracks());
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch((error) => alert(error));
-          }
-          // alert("here");
-        })
-        .catch((error) => alert(error));
-    } else {
-      navigator.mediaDevices
-        .getUserMedia({
-          audio: false,
-          video: {
-            ...activeCamera,
-            aspectRatio: 1.0,
-            facingMode: { exact: "environment", ideal: "environment" },
-          },
-        })
-        .then((stream) => {
-          if (videoRef.current) {
-            setCurrentStream(stream);
-            alert(stream.getTracks());
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch((error) => alert(error));
-          }
-        })
-        .catch((error) => alert(error));
-    }
-  };
-
   useEffect(() => {
-    getDevices();
-  }, []);
+    const startMedia = async () => {
+      setLoading(true);
+      if (currentStream) {
+        stopMedia(currentStream);
+      }
+      await navigator.mediaDevices
+        .getUserMedia({
+          audio: false,
+          video: {
+            aspectRatio: 1.0,
+            facingMode: { ideal: facingMode, exact: facingMode },
+          },
+        })
+        .then(async (userMedia) => {
+          if (videoRef.current) {
+            setCurrentStream(userMedia);
+            videoRef.current.srcObject = userMedia;
+            await videoRef.current.play().catch((error) => {
+              console.error(error);
+            });
+            setLoading(false);
+          }
+        })
+        .catch((error: Error) => {
+          console.error(error.name);
+          if (error.name === "NotReadableError" && currentStream) {
+            stopMedia(currentStream);
+          } else {
+            setCameraError(`User media error ${error}`);
+            setLoading(false);
+          }
+        });
+    };
+    startMedia();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facingMode]);
 
   const changeFacingMode = () => {
-    const camera = cameras.filter((camera) => {
-      if (activeCamera && camera.deviceId !== activeCamera.deviceId) {
-        return camera;
-      }
-    });
-    setActiveCamera(camera[0]);
-    startMedia(camera[0]);
+    if (facingMode === "environment") {
+      setFacingMode("user");
+    } else {
+      setFacingMode("environment");
+    }
   };
 
-  // if (cameraError || (mediaStream && mediaStream.active === false)) {
-  //   return (
-  //     <Result
-  //       status="error"
-  //       title="Не удалось получить изображение с камеры"
-  //       subTitle=" Возможно, необходимо выдать доступ к камере для браузера/приложения"
-  //       extra={
-  //         <Button type="primary" onClick={() => window.location.reload()}>
-  //           Попробовать снова
-  //         </Button>
-  //       }
-  //     />
-  //   );
-  // }
+  if (cameraError || (currentStream && currentStream.active === false)) {
+    return (
+      <Result
+        status="error"
+        title="Не удалось получить изображение с камеры"
+        subTitle=" Возможно, необходимо выдать доступ к камере для браузера/приложения"
+        extra={
+          <Button type="primary" onClick={() => window.location.reload()}>
+            Попробовать снова
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>
-        <video ref={videoRef} autoPlay loop width="100%" height="100%" />
-        {videoRef.current && (
+        <video ref={videoRef} width="100%" height="100%" />
+        {currentStream && videoRef.current ? (
           <Frame video={videoRef.current} onScan={onFrameMove} />
+        ) : (
+          <Spin size="large" spinning={loading} />
         )}
       </Space>
       <Space direction="vertical" align="center" style={{ width: "100%" }}>

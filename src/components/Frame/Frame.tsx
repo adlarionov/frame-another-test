@@ -10,6 +10,7 @@ const Frame = ({
 }) => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [isMouseDragging, setIsMouseDragging] = useState<boolean>(false);
   const draggableRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,6 +75,49 @@ const Frame = ({
     }
   };
 
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsMouseDragging(true);
+
+    if (draggableRef.current) {
+      const boundingRect = draggableRef.current.getBoundingClientRect();
+      setDragOffset({
+        offsetX: e.clientX - boundingRect.left,
+        offsetY: e.clientY - boundingRect.top,
+      });
+    }
+  };
+
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (containerRef.current && draggableRef.current) {
+      if (isMouseDragging) {
+        if (
+          e.clientX > video.clientWidth - 15 ||
+          e.clientY > video.clientHeight - 15
+        ) {
+          setIsMouseDragging(false);
+          return;
+        }
+        const x = e.clientX - dragOffset.offsetX;
+        const y = e.clientY - dragOffset.offsetY;
+
+        const maxX =
+          containerRef.current.clientWidth - draggableRef.current.clientWidth;
+        const maxY =
+          containerRef.current.clientHeight - draggableRef.current.clientHeight;
+
+        const validX = Math.min(Math.max(0, x), maxX);
+        const validY = Math.min(Math.max(0, y), maxY);
+
+        draggableRef.current.style.left = `${validX}px`;
+        draggableRef.current.style.top = `${validY}px`;
+      }
+    }
+  };
+
+  const onMouseUp = () => {
+    setIsMouseDragging(false);
+  };
+
   const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const touch1 = e.touches[0];
     const touch2 = e.touches[1];
@@ -120,16 +164,6 @@ const Frame = ({
         if (newHeight > 180 || newHeight < 90) {
           return;
         }
-
-        if (
-          draggableRef.current.offsetTop + newHeight >
-            document.body.clientWidth - 5 ||
-          draggableRef.current.offsetLeft + newWidth >
-            document.body.clientWidth - 5
-        ) {
-          return;
-        }
-
         draggableRef.current.style.width = `${newWidth}px`;
         draggableRef.current.style.height = `${newHeight}px`;
       } else {
@@ -175,6 +209,9 @@ const Frame = ({
     <div
       className={styles.frame}
       ref={containerRef}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
